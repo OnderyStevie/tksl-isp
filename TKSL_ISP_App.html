@@ -1,0 +1,1305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#0a0f1e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="TKSL ISP — Client & Billing Management">
+<title>TKSL ISP</title>
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ── RESET & BASE ─────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:        #0a0f1e;
+  --bg2:       #0f1628;
+  --bg3:       #151d35;
+  --border:    rgba(255,255,255,0.07);
+  --accent:    #00e5ff;
+  --accent2:   #7c4dff;
+  --green:     #00e676;
+  --yellow:    #ffd740;
+  --red:       #ff5252;
+  --text:      #e8eaf6;
+  --muted:     #5c6bc0;
+  --card:      rgba(255,255,255,0.04);
+  --radius:    16px;
+  --font-head: 'Syne', sans-serif;
+  --font-mono: 'Space Mono', monospace;
+}
+html,body{height:100%;overflow:hidden}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--font-head);
+  font-size:14px;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ── NOISE OVERLAY ───────────────────────────────────── */
+body::before{
+  content:'';
+  position:fixed;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events:none;z-index:0;opacity:.4;
+}
+
+/* ── SCREENS ─────────────────────────────────────────── */
+.screen{
+  position:fixed;inset:0;
+  display:flex;flex-direction:column;
+  overflow:hidden;
+  opacity:0;pointer-events:none;
+  transition:opacity .3s ease;
+  z-index:1;
+}
+.screen.active{opacity:1;pointer-events:all}
+
+/* ── LOGIN SCREEN ────────────────────────────────────── */
+#screen-login{
+  background:var(--bg);
+  align-items:center;justify-content:center;
+  padding:24px;
+}
+.login-glow{
+  position:absolute;
+  width:400px;height:400px;
+  background:radial-gradient(circle, rgba(0,229,255,.15) 0%, transparent 70%);
+  top:50%;left:50%;transform:translate(-50%,-60%);
+  pointer-events:none;
+}
+.login-box{
+  width:100%;max-width:360px;
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:24px;
+  padding:36px 28px;
+  position:relative;z-index:1;
+}
+.login-logo{
+  text-align:center;margin-bottom:32px;
+}
+.login-logo .brand{
+  font-size:28px;font-weight:800;letter-spacing:-1px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.login-logo .sub{
+  font-family:var(--font-mono);font-size:10px;
+  color:var(--muted);letter-spacing:3px;margin-top:4px;
+}
+.role-tabs{
+  display:grid;grid-template-columns:1fr 1fr;
+  gap:8px;margin-bottom:24px;
+}
+.role-tab{
+  padding:10px;border-radius:12px;
+  border:1px solid var(--border);
+  background:transparent;
+  color:var(--muted);font-family:var(--font-head);
+  font-size:13px;font-weight:600;cursor:pointer;
+  transition:all .2s;
+}
+.role-tab.active{
+  background:var(--accent);color:var(--bg);
+  border-color:var(--accent);
+}
+.field{margin-bottom:16px}
+.field label{
+  display:block;font-size:11px;font-weight:600;
+  color:var(--muted);letter-spacing:1px;
+  text-transform:uppercase;margin-bottom:6px;
+}
+.field input{
+  width:100%;padding:12px 14px;
+  background:var(--bg3);border:1px solid var(--border);
+  border-radius:12px;color:var(--text);
+  font-family:var(--font-mono);font-size:13px;
+  outline:none;transition:border-color .2s;
+}
+.field input:focus{border-color:var(--accent)}
+.btn-primary{
+  width:100%;padding:14px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  border:none;border-radius:12px;
+  color:var(--bg);font-family:var(--font-head);
+  font-size:14px;font-weight:700;cursor:pointer;
+  transition:opacity .2s,transform .1s;
+  margin-top:8px;
+}
+.btn-primary:active{opacity:.85;transform:scale(.98)}
+.login-hint{
+  font-family:var(--font-mono);font-size:10px;
+  color:var(--muted);text-align:center;margin-top:16px;
+}
+.error-msg{
+  background:rgba(255,82,82,.1);border:1px solid var(--red);
+  border-radius:10px;padding:10px 12px;
+  color:var(--red);font-size:12px;text-align:center;
+  margin-bottom:12px;display:none;
+}
+
+/* ── TOP BAR ─────────────────────────────────────────── */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 20px 12px;
+  border-bottom:1px solid var(--border);
+  background:var(--bg);
+  flex-shrink:0;
+}
+.topbar-brand{
+  font-size:18px;font-weight:800;letter-spacing:-0.5px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.topbar-user{
+  display:flex;align-items:center;gap:8px;
+}
+.topbar-avatar{
+  width:32px;height:32px;border-radius:50%;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:700;color:var(--bg);
+}
+.topbar-name{font-size:12px;color:var(--muted)}
+
+/* ── SCROLL AREA ─────────────────────────────────────── */
+.scroll-area{
+  flex:1;overflow-y:auto;
+  padding:16px 16px 100px;
+  -webkit-overflow-scrolling:touch;
+}
+.scroll-area::-webkit-scrollbar{display:none}
+
+/* ── BOTTOM NAV ──────────────────────────────────────── */
+.bottom-nav{
+  position:fixed;bottom:0;left:0;right:0;
+  background:var(--bg2);
+  border-top:1px solid var(--border);
+  display:flex;
+  padding:8px 0 max(8px, env(safe-area-inset-bottom));
+  z-index:100;
+}
+.nav-item{
+  flex:1;display:flex;flex-direction:column;
+  align-items:center;gap:4px;padding:8px 4px;
+  cursor:pointer;border:none;background:none;
+  color:var(--muted);transition:color .2s;
+  font-family:var(--font-head);
+}
+.nav-item.active{color:var(--accent)}
+.nav-icon{font-size:20px;transition:transform .2s}
+.nav-item.active .nav-icon{transform:scale(1.2)}
+.nav-label{font-size:9px;font-weight:600;letter-spacing:.5px;text-transform:uppercase}
+
+/* ── CARDS ───────────────────────────────────────────── */
+.card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:16px;margin-bottom:12px;
+}
+.card-title{
+  font-size:11px;font-weight:600;color:var(--muted);
+  letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px;
+}
+
+/* ── STAT GRID ───────────────────────────────────────── */
+.stat-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:10px;
+  margin-bottom:12px;
+}
+.stat-card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:14px;padding:14px 12px;
+  position:relative;overflow:hidden;
+}
+.stat-card::before{
+  content:'';position:absolute;
+  top:-20px;right:-20px;
+  width:60px;height:60px;border-radius:50%;
+  opacity:.15;
+}
+.stat-card.green::before{background:var(--green)}
+.stat-card.yellow::before{background:var(--yellow)}
+.stat-card.red::before{background:var(--red)}
+.stat-card.blue::before{background:var(--accent)}
+.stat-label{font-size:10px;color:var(--muted);font-weight:600;letter-spacing:.5px;text-transform:uppercase}
+.stat-value{
+  font-size:28px;font-weight:800;margin:4px 0 2px;
+  font-family:var(--font-mono);
+}
+.stat-card.green .stat-value{color:var(--green)}
+.stat-card.yellow .stat-value{color:var(--yellow)}
+.stat-card.red .stat-value{color:var(--red)}
+.stat-card.blue .stat-value{color:var(--accent)}
+.stat-sub{font-size:10px;color:var(--muted)}
+
+/* ── REVENUE CARD ────────────────────────────────────── */
+.revenue-card{
+  background:linear-gradient(135deg,rgba(0,229,255,.1),rgba(124,77,255,.1));
+  border:1px solid rgba(0,229,255,.2);
+  border-radius:var(--radius);padding:20px;
+  margin-bottom:12px;
+}
+.revenue-label{font-size:11px;color:var(--accent);font-weight:600;letter-spacing:1px;text-transform:uppercase}
+.revenue-amount{
+  font-size:36px;font-weight:800;
+  font-family:var(--font-mono);
+  color:var(--text);margin:6px 0 4px;
+}
+.revenue-sub{font-size:12px;color:var(--muted)}
+
+/* ── CLIENT LIST ─────────────────────────────────────── */
+.search-bar{
+  position:relative;margin-bottom:12px;
+}
+.search-bar input{
+  width:100%;padding:12px 14px 12px 40px;
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:14px;color:var(--text);
+  font-family:var(--font-mono);font-size:12px;outline:none;
+  transition:border-color .2s;
+}
+.search-bar input:focus{border-color:var(--accent)}
+.search-bar::before{
+  content:'⌕';position:absolute;left:13px;top:50%;
+  transform:translateY(-50%);color:var(--muted);font-size:18px;
+}
+.filter-row{
+  display:flex;gap:8px;margin-bottom:14px;
+  overflow-x:auto;padding-bottom:4px;
+}
+.filter-row::-webkit-scrollbar{display:none}
+.filter-chip{
+  padding:6px 14px;border-radius:20px;
+  border:1px solid var(--border);
+  background:transparent;color:var(--muted);
+  font-family:var(--font-head);font-size:11px;
+  font-weight:600;cursor:pointer;white-space:nowrap;
+  transition:all .2s;
+}
+.filter-chip.active{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+.client-item{
+  display:flex;align-items:center;gap:12px;
+  padding:14px;background:var(--card);
+  border:1px solid var(--border);
+  border-radius:14px;margin-bottom:8px;
+  cursor:pointer;transition:border-color .2s,background .2s;
+}
+.client-item:active{background:var(--bg3)}
+.client-avatar{
+  width:40px;height:40px;border-radius:12px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;font-weight:700;flex-shrink:0;
+}
+.client-info{flex:1;min-width:0}
+.client-name{font-size:14px;font-weight:700;truncate:ellipsis;white-space:nowrap;overflow:hidden}
+.client-plan{font-size:11px;color:var(--muted);font-family:var(--font-mono)}
+.client-right{text-align:right;flex-shrink:0}
+.status-badge{
+  display:inline-block;padding:3px 10px;
+  border-radius:20px;font-size:10px;font-weight:700;
+  letter-spacing:.5px;text-transform:uppercase;
+}
+.badge-active{background:rgba(0,230,118,.15);color:var(--green)}
+.badge-grace{background:rgba(255,215,64,.15);color:var(--yellow)}
+.badge-disabled{background:rgba(255,82,82,.15);color:var(--red)}
+.badge-admin{background:rgba(0,229,255,.15);color:var(--accent)}
+.client-days{font-size:10px;color:var(--muted);margin-top:3px;font-family:var(--font-mono)}
+
+/* ── CLIENT DETAIL MODAL ─────────────────────────────── */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.7);
+  z-index:200;opacity:0;pointer-events:none;
+  transition:opacity .3s;display:flex;
+  align-items:flex-end;
+}
+.modal-overlay.open{opacity:1;pointer-events:all}
+.modal-sheet{
+  width:100%;background:var(--bg2);
+  border-radius:24px 24px 0 0;
+  border-top:1px solid var(--border);
+  padding:20px 20px max(20px,env(safe-area-inset-bottom));
+  transform:translateY(100%);
+  transition:transform .3s cubic-bezier(.4,0,.2,1);
+  max-height:90vh;overflow-y:auto;
+}
+.modal-overlay.open .modal-sheet{transform:translateY(0)}
+.modal-handle{
+  width:40px;height:4px;background:var(--border);
+  border-radius:2px;margin:0 auto 20px;
+}
+.modal-name{font-size:22px;font-weight:800;margin-bottom:4px}
+.modal-plan{font-family:var(--font-mono);font-size:12px;color:var(--muted);margin-bottom:16px}
+.detail-row{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:12px 0;border-bottom:1px solid var(--border);
+}
+.detail-row:last-of-type{border-bottom:none}
+.detail-label{font-size:12px;color:var(--muted);font-weight:600}
+.detail-value{font-family:var(--font-mono);font-size:13px;font-weight:700}
+.action-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:20px}
+.btn-action{
+  padding:14px;border-radius:14px;border:none;
+  font-family:var(--font-head);font-size:13px;font-weight:700;
+  cursor:pointer;transition:opacity .2s,transform .1s;
+}
+.btn-action:active{opacity:.8;transform:scale(.97)}
+.btn-enable{background:rgba(0,230,118,.2);color:var(--green)}
+.btn-disable{background:rgba(255,82,82,.2);color:var(--red)}
+.btn-paid{background:linear-gradient(135deg,var(--accent),var(--accent2));color:var(--bg)}
+.btn-close-modal{
+  width:100%;padding:14px;border-radius:14px;
+  border:1px solid var(--border);background:transparent;
+  color:var(--muted);font-family:var(--font-head);
+  font-size:13px;cursor:pointer;margin-top:10px;
+}
+
+/* ── BILLING TAB ─────────────────────────────────────── */
+.payment-item{
+  display:flex;align-items:center;gap:12px;
+  padding:12px;background:var(--card);
+  border:1px solid var(--border);border-radius:12px;
+  margin-bottom:8px;
+}
+.payment-dot{
+  width:10px;height:10px;border-radius:50%;flex-shrink:0;
+}
+.payment-info{flex:1}
+.payment-name{font-size:13px;font-weight:700}
+.payment-date{font-size:11px;color:var(--muted);font-family:var(--font-mono)}
+.payment-amount{font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--green)}
+
+/* ── ALERTS TAB ──────────────────────────────────────── */
+.alert-item{
+  padding:14px;background:var(--card);
+  border-left:3px solid var(--accent);
+  border-radius:0 12px 12px 0;
+  margin-bottom:8px;
+}
+.alert-item.warn{border-left-color:var(--yellow)}
+.alert-item.danger{border-left-color:var(--red)}
+.alert-title{font-size:13px;font-weight:700;margin-bottom:3px}
+.alert-body{font-size:11px;color:var(--muted)}
+.alert-time{font-size:10px;color:var(--muted);font-family:var(--font-mono);margin-top:4px}
+
+/* ── CLIENT PORTAL ───────────────────────────────────── */
+.portal-hero{
+  background:linear-gradient(135deg,rgba(0,229,255,.12),rgba(124,77,255,.12));
+  border:1px solid rgba(0,229,255,.15);
+  border-radius:20px;padding:24px;margin-bottom:16px;
+  text-align:center;
+}
+.portal-username{
+  font-size:22px;font-weight:800;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.portal-plan{font-size:12px;color:var(--muted);font-family:var(--font-mono);margin:4px 0 16px}
+.portal-status{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:8px 20px;border-radius:20px;
+  font-size:13px;font-weight:700;
+}
+.expiry-bar-wrap{margin:20px 0 8px}
+.expiry-bar-label{
+  display:flex;justify-content:space-between;
+  font-size:11px;color:var(--muted);margin-bottom:8px;
+}
+.expiry-bar-track{
+  height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;
+}
+.expiry-bar-fill{
+  height:100%;border-radius:3px;
+  background:linear-gradient(90deg,var(--accent),var(--green));
+  transition:width 1s ease;
+}
+
+/* ── SECTION HEADER ──────────────────────────────────── */
+.section-header{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:12px;
+}
+.section-title{font-size:16px;font-weight:800}
+.section-action{
+  font-size:11px;color:var(--accent);font-weight:600;
+  background:none;border:none;cursor:pointer;padding:4px 8px;
+}
+
+/* ── ADD CLIENT FORM ─────────────────────────────────── */
+.form-row{margin-bottom:14px}
+.form-row label{
+  display:block;font-size:11px;font-weight:600;
+  color:var(--muted);letter-spacing:1px;
+  text-transform:uppercase;margin-bottom:6px;
+}
+.form-row input,
+.form-row select{
+  width:100%;padding:12px 14px;
+  background:var(--bg3);border:1px solid var(--border);
+  border-radius:12px;color:var(--text);
+  font-family:var(--font-mono);font-size:13px;outline:none;
+  transition:border-color .2s;-webkit-appearance:none;
+}
+.form-row input:focus,
+.form-row select:focus{border-color:var(--accent)}
+.form-row select option{background:var(--bg2)}
+
+/* ── LOADING ─────────────────────────────────────────── */
+.loading{
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  padding:60px 20px;gap:16px;
+}
+.spinner{
+  width:36px;height:36px;border-radius:50%;
+  border:3px solid var(--border);
+  border-top-color:var(--accent);
+  animation:spin .8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-size:12px;color:var(--muted);font-family:var(--font-mono)}
+
+/* ── TOAST ───────────────────────────────────────────── */
+.toast{
+  position:fixed;bottom:90px;left:50%;
+  transform:translateX(-50%) translateY(20px);
+  background:var(--bg3);border:1px solid var(--border);
+  border-radius:12px;padding:12px 20px;
+  font-size:13px;font-weight:600;
+  opacity:0;transition:all .3s;z-index:300;
+  white-space:nowrap;pointer-events:none;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.success{border-color:var(--green);color:var(--green)}
+.toast.error{border-color:var(--red);color:var(--red)}
+
+/* ── ANIMATIONS ──────────────────────────────────────── */
+@keyframes fadeUp{
+  from{opacity:0;transform:translateY(16px)}
+  to{opacity:1;transform:translateY(0)}
+}
+.fade-up{animation:fadeUp .4s ease forwards}
+.fade-up:nth-child(1){animation-delay:.05s}
+.fade-up:nth-child(2){animation-delay:.1s}
+.fade-up:nth-child(3){animation-delay:.15s}
+.fade-up:nth-child(4){animation-delay:.2s}
+.fade-up:nth-child(5){animation-delay:.25s}
+
+/* ── PULSE DOT ───────────────────────────────────────── */
+.live-dot{
+  width:8px;height:8px;border-radius:50%;
+  background:var(--green);display:inline-block;
+  margin-right:6px;
+  animation:pulse 2s ease-in-out infinite;
+}
+@keyframes pulse{
+  0%,100%{opacity:1;transform:scale(1)}
+  50%{opacity:.5;transform:scale(.8)}
+}
+</style>
+</head>
+<body>
+
+<!-- ── LOGIN SCREEN ─────────────────────────────────── -->
+<div id="screen-login" class="screen active">
+  <div class="login-glow"></div>
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="brand">TKSL ISP</div>
+      <div class="sub">NETWORK MANAGEMENT</div>
+    </div>
+    <div class="role-tabs">
+      <button class="role-tab active" onclick="setRole('admin')">Admin</button>
+      <button class="role-tab" onclick="setRole('client')">Client</button>
+    </div>
+    <div class="error-msg" id="login-error">Invalid credentials</div>
+    <div class="field">
+      <label id="user-label">Username</label>
+      <input type="text" id="login-user" placeholder="admin" autocomplete="off" autocapitalize="none">
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="login-pass" placeholder="••••••••">
+    </div>
+    <button class="btn-primary" onclick="doLogin()">Sign In</button>
+    <div class="login-hint">Demo: admin / tksl2026 &nbsp;|&nbsp; client: any username / 1234</div>
+  </div>
+</div>
+
+<!-- ── ADMIN SCREEN ─────────────────────────────────── -->
+<div id="screen-admin" class="screen">
+  <div class="topbar">
+    <div class="topbar-brand">TKSL ISP</div>
+    <div class="topbar-user">
+      <span class="live-dot"></span>
+      <span class="topbar-name" id="admin-uptime">Live</span>
+      <div class="topbar-avatar" onclick="logout()">A</div>
+    </div>
+  </div>
+
+  <!-- Dashboard Tab -->
+  <div id="tab-dashboard" class="scroll-area">
+    <div style="margin-bottom:16px">
+      <div class="section-title fade-up" style="font-size:20px;margin-bottom:4px">Good morning 👋</div>
+      <div class="fade-up" style="font-size:12px;color:var(--muted);font-family:var(--font-mono)" id="dash-date"></div>
+    </div>
+
+    <div class="revenue-card fade-up">
+      <div class="revenue-label">Expected Monthly Revenue</div>
+      <div class="revenue-amount" id="dash-revenue">KES 0</div>
+      <div class="revenue-sub">Net after ISP costs: <span id="dash-net" style="color:var(--green)">KES 0</span></div>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-card green fade-up">
+        <div class="stat-label">Active</div>
+        <div class="stat-value" id="dash-active">0</div>
+        <div class="stat-sub">clients online</div>
+      </div>
+      <div class="stat-card yellow fade-up">
+        <div class="stat-label">Grace</div>
+        <div class="stat-value" id="dash-grace">0</div>
+        <div class="stat-sub">expiring soon</div>
+      </div>
+      <div class="stat-card red fade-up">
+        <div class="stat-label">Disabled</div>
+        <div class="stat-value" id="dash-disabled">0</div>
+        <div class="stat-sub">need renewal</div>
+      </div>
+      <div class="stat-card blue fade-up">
+        <div class="stat-label">Total</div>
+        <div class="stat-value" id="dash-total">0</div>
+        <div class="stat-sub">all clients</div>
+      </div>
+    </div>
+
+    <div class="card fade-up">
+      <div class="card-title">Plan Distribution</div>
+      <div id="plan-breakdown"></div>
+    </div>
+
+    <div class="card fade-up">
+      <div class="section-header">
+        <div class="card-title" style="margin:0">Expiring in 5 days</div>
+      </div>
+      <div id="expiring-list"></div>
+    </div>
+  </div>
+
+  <!-- Clients Tab -->
+  <div id="tab-clients" class="scroll-area" style="display:none">
+    <div class="search-bar">
+      <input type="text" placeholder="Search clients..." id="client-search" oninput="filterClients()">
+    </div>
+    <div class="filter-row">
+      <button class="filter-chip active" onclick="setFilter('all',this)">All</button>
+      <button class="filter-chip" onclick="setFilter('Active',this)">Active</button>
+      <button class="filter-chip" onclick="setFilter('Grace Period',this)">Grace</button>
+      <button class="filter-chip" onclick="setFilter('Disabled',this)">Disabled</button>
+      <button class="filter-chip" onclick="setFilter('Admin',this)">Admin</button>
+    </div>
+    <div id="client-list"></div>
+  </div>
+
+  <!-- Billing Tab -->
+  <div id="tab-billing" class="scroll-area" style="display:none">
+    <div class="section-header fade-up">
+      <div class="section-title">Billing</div>
+      <button class="section-action" onclick="showAddPayment()">+ Record</button>
+    </div>
+
+    <div class="revenue-card fade-up">
+      <div class="revenue-label">This Month</div>
+      <div class="revenue-amount" id="billing-revenue">KES 0</div>
+      <div class="revenue-sub" id="billing-breakdown">Loading...</div>
+    </div>
+
+    <div class="card fade-up">
+      <div class="card-title">Recent Payments</div>
+      <div id="payment-list"></div>
+    </div>
+  </div>
+
+  <!-- Alerts Tab -->
+  <div id="tab-alerts" class="scroll-area" style="display:none">
+    <div class="section-header fade-up">
+      <div class="section-title">Notifications</div>
+    </div>
+    <div id="alerts-list"></div>
+  </div>
+
+  <!-- Bottom Nav -->
+  <div class="bottom-nav">
+    <button class="nav-item active" onclick="switchTab('dashboard',this)">
+      <span class="nav-icon">⬡</span>
+      <span class="nav-label">Dashboard</span>
+    </button>
+    <button class="nav-item" onclick="switchTab('clients',this)">
+      <span class="nav-icon">◈</span>
+      <span class="nav-label">Clients</span>
+    </button>
+    <button class="nav-item" onclick="switchTab('billing',this)">
+      <span class="nav-icon">◎</span>
+      <span class="nav-label">Billing</span>
+    </button>
+    <button class="nav-item" onclick="switchTab('alerts',this)">
+      <span class="nav-icon">◉</span>
+      <span class="nav-label">Alerts</span>
+    </button>
+  </div>
+</div>
+
+<!-- ── CLIENT PORTAL SCREEN ──────────────────────────── -->
+<div id="screen-client" class="screen">
+  <div class="topbar">
+    <div class="topbar-brand">TKSL ISP</div>
+    <div class="topbar-user">
+      <div class="topbar-avatar" id="portal-avatar">?</div>
+      <div class="topbar-name" onclick="logout()" style="cursor:pointer">Logout</div>
+    </div>
+  </div>
+  <div class="scroll-area">
+    <div class="portal-hero fade-up">
+      <div class="portal-username" id="portal-username">—</div>
+      <div class="portal-plan" id="portal-plan">—</div>
+      <div class="portal-status" id="portal-status-badge">—</div>
+      <div class="expiry-bar-wrap">
+        <div class="expiry-bar-label">
+          <span>Billing cycle</span>
+          <span id="portal-days">— days left</span>
+        </div>
+        <div class="expiry-bar-track">
+          <div class="expiry-bar-fill" id="portal-bar" style="width:0%"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card fade-up">
+      <div class="card-title">Account Details</div>
+      <div class="detail-row">
+        <span class="detail-label">Monthly Fee</span>
+        <span class="detail-value" id="portal-fee">—</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Expiry Date</span>
+        <span class="detail-value" id="portal-expiry">—</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Speed</span>
+        <span class="detail-value" id="portal-speed">—</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Status</span>
+        <span class="detail-value" id="portal-status-text">—</span>
+      </div>
+    </div>
+
+    <div class="card fade-up">
+      <div class="card-title">How to Renew</div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.8">
+        <div>📱 M-Pesa Paybill: <strong style="color:var(--text)">[YOUR PAYBILL]</strong></div>
+        <div style="margin-top:8px">💬 WhatsApp: <strong style="color:var(--text)">[YOUR NUMBER]</strong></div>
+        <div style="margin-top:8px">⏰ Service restored within 5 minutes of payment</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── CLIENT DETAIL MODAL ──────────────────────────── -->
+<div class="modal-overlay" id="client-modal" onclick="closeModal(event)">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div id="modal-content"></div>
+  </div>
+</div>
+
+<!-- ── TOAST ────────────────────────────────────────── -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// CONFIG — update these
+// ═══════════════════════════════════════════════════════
+const CONFIG = {
+  // Your Google Sheets CSV URL
+  CSV_URL: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSdERzHeiH7rWjpy9QMPjbDtBCT7e38CYah5XJ3z7kKn-4IvnKWecvPmMgymDuQbfHhJIyYt22X3lcD/pub?gid=1335412206&single=true&output=csv",
+  // Admin credentials
+  ADMIN_USER: "admin",
+  ADMIN_PASS: "tksl2026",
+  // Client default password
+  CLIENT_PASS: "1234",
+  // ISP costs
+  ISP_COST: 21344,
+  PLAN_FEES: {
+    "Plan_500": 500, "Plan_1000": 1000,
+    "Plan_1500": 1500, "Plan_2000": 2000, "Plan_Admin": 0
+  },
+  PLAN_SPEEDS: {
+    "Plan_500": "2 Mbps", "Plan_1000": "4 Mbps",
+    "Plan_1500": "7 Mbps", "Plan_2000": "20 Mbps", "Plan_Admin": "20 Mbps"
+  }
+};
+
+// ═══════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════
+let state = {
+  role: 'admin',
+  clients: [],
+  filtered: [],
+  filterStatus: 'all',
+  searchTerm: '',
+  currentTab: 'dashboard',
+  loggedInClient: null,
+  payments: JSON.parse(localStorage.getItem('tksl_payments') || '[]'),
+  alerts: JSON.parse(localStorage.getItem('tksl_alerts') || '[]'),
+  lastSync: null
+};
+
+// ═══════════════════════════════════════════════════════
+// LOGIN
+// ═══════════════════════════════════════════════════════
+function setRole(role) {
+  state.role = role;
+  document.querySelectorAll('.role-tab').forEach((t,i) => {
+    t.classList.toggle('active', (i===0&&role==='admin')||(i===1&&role==='client'));
+  });
+  document.getElementById('user-label').textContent = role === 'admin' ? 'Username' : 'Your Username';
+  document.getElementById('login-user').placeholder = role === 'admin' ? 'admin' : 'e.g. kijuma';
+}
+
+function doLogin() {
+  const user = document.getElementById('login-user').value.trim().toLowerCase();
+  const pass = document.getElementById('login-pass').value;
+  const err  = document.getElementById('login-error');
+  err.style.display = 'none';
+
+  if (state.role === 'admin') {
+    if (user === CONFIG.ADMIN_USER && pass === CONFIG.ADMIN_PASS) {
+      showScreen('admin');
+      loadData();
+    } else {
+      err.style.display = 'block';
+    }
+  } else {
+    if (pass === CONFIG.CLIENT_PASS) {
+      state.loggedInClient = user;
+      showScreen('client');
+      loadData(true);
+    } else {
+      err.style.display = 'block';
+    }
+  }
+}
+
+document.getElementById('login-pass').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+
+function logout() {
+  state.clients = [];
+  state.loggedInClient = null;
+  showScreen('login');
+  document.getElementById('login-user').value = '';
+  document.getElementById('login-pass').value = '';
+}
+
+// ═══════════════════════════════════════════════════════
+// SCREEN ROUTING
+// ═══════════════════════════════════════════════════════
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+}
+
+// ═══════════════════════════════════════════════════════
+// DATA LOADING
+// ═══════════════════════════════════════════════════════
+async function loadData(clientOnly = false) {
+  try {
+    // Show loading
+    if (!clientOnly) {
+      document.getElementById('client-list').innerHTML = '<div class="loading"><div class="spinner"></div><div class="loading-text">Syncing sheet data...</div></div>';
+    }
+
+    const resp = await fetch(CONFIG.CSV_URL + '&t=' + Date.now());
+    const text = await resp.text();
+    parseCSV(text);
+    state.lastSync = new Date();
+
+    if (clientOnly) {
+      renderClientPortal();
+    } else {
+      renderDashboard();
+      renderClientList();
+      renderBilling();
+      renderAlerts();
+    }
+  } catch(e) {
+    // Use demo data if fetch fails
+    loadDemoData();
+    if (clientOnly) renderClientPortal();
+    else { renderDashboard(); renderClientList(); renderBilling(); renderAlerts(); }
+  }
+}
+
+function parseCSV(text) {
+  const lines = text.split('\n');
+  state.clients = [];
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  for (let i = 3; i < lines.length; i++) {
+    const cols = parseCSVLine(lines[i]);
+    if (!cols[1] || cols[1].trim() === '') continue;
+    const username = cols[1].trim();
+    const plan     = cols[2] ? cols[2].trim() : '';
+    const fee      = CONFIG.PLAN_FEES[plan] || 0;
+    const expiryStr = cols[4] ? cols[4].trim() : '';
+    let expiry = null, daysLeft = 0, status = 'Unknown';
+
+    if (expiryStr) {
+      expiry = new Date(expiryStr);
+      if (!isNaN(expiry)) {
+        expiry.setHours(0,0,0,0);
+        daysLeft = Math.round((expiry - today) / 86400000);
+        if (plan === 'Plan_Admin') status = 'Admin';
+        else if (daysLeft > 2)    status = 'Active';
+        else if (daysLeft >= 0)   status = 'Grace Period';
+        else                      status = 'Disabled';
+      }
+    }
+
+    state.clients.push({ username, plan, fee, expiry, daysLeft, status,
+      contact: cols[9] ? cols[9].trim() : '',
+      notes:   cols[10] ? cols[10].trim() : '' });
+  }
+}
+
+function parseCSVLine(line) {
+  const result = []; let current = ''; let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    if (line[i] === '"') { inQuotes = !inQuotes; }
+    else if (line[i] === ',' && !inQuotes) { result.push(current); current = ''; }
+    else { current += line[i]; }
+  }
+  result.push(current);
+  return result;
+}
+
+function loadDemoData() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const demo = [
+    ['charles25th','Plan_500',7],['mamaalias29th','Plan_500',15],
+    ['kijuma','Plan_1000',0],['ommy','Plan_1000',2],
+    ['becky4th','Plan_1000',22],['eddy3rd','Plan_1000',21],
+    ['husein16th','Plan_1500',2],['paul7th','Plan_1500',28],
+    ['julius','Plan_1500',23],['maryam2nd','Plan_1500',-3],
+    ['berna','Plan_2000',18],['fahali','Plan_2000',25],
+    ['arnoldlil','Plan_Admin',20],['steviehome','Plan_Admin',20],
+  ];
+  state.clients = demo.map(([username, plan, days]) => {
+    const expiry = new Date(today); expiry.setDate(expiry.getDate() + days);
+    const fee = CONFIG.PLAN_FEES[plan] || 0;
+    let status;
+    if (plan === 'Plan_Admin') status = 'Admin';
+    else if (days > 2) status = 'Active';
+    else if (days >= 0) status = 'Grace Period';
+    else status = 'Disabled';
+    return { username, plan, fee, expiry, daysLeft: days, status, contact: '', notes: '' };
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════════════
+function renderDashboard() {
+  const today = new Date();
+  document.getElementById('dash-date').textContent =
+    today.toLocaleDateString('en-KE', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+  const paying = state.clients.filter(c => c.plan !== 'Plan_Admin');
+  const active   = paying.filter(c => c.status === 'Active').length;
+  const grace    = paying.filter(c => c.status === 'Grace Period').length;
+  const disabled = paying.filter(c => c.status === 'Disabled').length;
+  const revenue  = paying.filter(c => c.status === 'Active').reduce((s,c) => s + c.fee, 0);
+  const net      = revenue - CONFIG.ISP_COST;
+
+  document.getElementById('dash-active').textContent   = active;
+  document.getElementById('dash-grace').textContent    = grace;
+  document.getElementById('dash-disabled').textContent = disabled;
+  document.getElementById('dash-total').textContent    = paying.length;
+  document.getElementById('dash-revenue').textContent  = 'KES ' + revenue.toLocaleString();
+  document.getElementById('dash-net').textContent      = 'KES ' + net.toLocaleString();
+
+  // Plan breakdown
+  const plans = ['Plan_500','Plan_1000','Plan_1500','Plan_2000'];
+  const colors = ['#00e5ff','#7c4dff','#00e676','#ffd740'];
+  let breakdownHTML = '';
+  plans.forEach((p, i) => {
+    const count = state.clients.filter(c => c.plan === p).length;
+    const rev   = count * CONFIG.PLAN_FEES[p];
+    const pct   = paying.length ? Math.round(count/paying.length*100) : 0;
+    breakdownHTML += `
+      <div style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+          <span style="font-size:12px;font-weight:600">${p}</span>
+          <span style="font-size:11px;font-family:var(--font-mono);color:var(--muted)">${count} clients · KES ${rev.toLocaleString()}</span>
+        </div>
+        <div style="height:4px;background:var(--bg3);border-radius:2px">
+          <div style="height:100%;width:${pct}%;background:${colors[i]};border-radius:2px;transition:width 1s"></div>
+        </div>
+      </div>`;
+  });
+  document.getElementById('plan-breakdown').innerHTML = breakdownHTML;
+
+  // Expiring soon
+  const expiring = state.clients
+    .filter(c => c.daysLeft >= 0 && c.daysLeft <= 5 && c.plan !== 'Plan_Admin')
+    .sort((a,b) => a.daysLeft - b.daysLeft);
+
+  if (expiring.length === 0) {
+    document.getElementById('expiring-list').innerHTML =
+      '<div style="font-size:12px;color:var(--muted);text-align:center;padding:16px">✅ No clients expiring in 5 days</div>';
+  } else {
+    document.getElementById('expiring-list').innerHTML = expiring.map(c => `
+      <div class="client-item" onclick="openClientModal('${c.username}')">
+        <div class="client-avatar" style="background:rgba(255,215,64,.15);color:var(--yellow)">${c.username[0].toUpperCase()}</div>
+        <div class="client-info">
+          <div class="client-name">${c.username}</div>
+          <div class="client-plan">${c.plan}</div>
+        </div>
+        <div class="client-right">
+          <span class="status-badge ${statusBadge(c.status)}">${c.status}</span>
+          <div class="client-days">${c.daysLeft}d left</div>
+        </div>
+      </div>`).join('');
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// CLIENT LIST
+// ═══════════════════════════════════════════════════════
+function renderClientList() {
+  const term   = state.searchTerm.toLowerCase();
+  const filter = state.filterStatus;
+  state.filtered = state.clients.filter(c => {
+    const matchSearch = !term || c.username.toLowerCase().includes(term) || c.plan.toLowerCase().includes(term);
+    const matchFilter = filter === 'all' || c.status === filter;
+    return matchSearch && matchFilter;
+  });
+
+  if (state.filtered.length === 0) {
+    document.getElementById('client-list').innerHTML =
+      '<div style="text-align:center;padding:40px;color:var(--muted);font-size:13px">No clients found</div>';
+    return;
+  }
+
+  document.getElementById('client-list').innerHTML = state.filtered.map(c => {
+    const avatarColors = {
+      'Active': 'rgba(0,230,118,.15);color:var(--green)',
+      'Grace Period': 'rgba(255,215,64,.15);color:var(--yellow)',
+      'Disabled': 'rgba(255,82,82,.15);color:var(--red)',
+      'Admin': 'rgba(0,229,255,.15);color:var(--accent)'
+    };
+    const ac = avatarColors[c.status] || 'rgba(255,255,255,.1);color:var(--muted)';
+    const dayStr = c.plan === 'Plan_Admin' ? 'Management' :
+      c.daysLeft < 0 ? `${Math.abs(c.daysLeft)}d overdue` : `${c.daysLeft}d left`;
+    return `
+      <div class="client-item" onclick="openClientModal('${c.username}')">
+        <div class="client-avatar" style="background:${ac}">${c.username[0].toUpperCase()}</div>
+        <div class="client-info">
+          <div class="client-name">${c.username}</div>
+          <div class="client-plan">${c.plan} · ${CONFIG.PLAN_SPEEDS[c.plan] || '—'}</div>
+        </div>
+        <div class="client-right">
+          <span class="status-badge ${statusBadge(c.status)}">${c.status}</span>
+          <div class="client-days">${dayStr}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function filterClients() {
+  state.searchTerm = document.getElementById('client-search').value;
+  renderClientList();
+}
+
+function setFilter(f, el) {
+  state.filterStatus = f;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderClientList();
+}
+
+// ═══════════════════════════════════════════════════════
+// CLIENT MODAL
+// ═══════════════════════════════════════════════════════
+function openClientModal(username) {
+  const c = state.clients.find(x => x.username === username);
+  if (!c) return;
+  const expiryStr = c.expiry ? c.expiry.toLocaleDateString('en-KE',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+  const dayStr = c.daysLeft < 0 ? `${Math.abs(c.daysLeft)} days overdue` : `${c.daysLeft} days remaining`;
+
+  document.getElementById('modal-content').innerHTML = `
+    <div class="modal-name">${c.username}</div>
+    <div class="modal-plan">${c.plan} · ${CONFIG.PLAN_SPEEDS[c.plan] || '—'}</div>
+    <span class="status-badge ${statusBadge(c.status)}" style="margin-bottom:16px;display:inline-block">${c.status}</span>
+    <div class="detail-row">
+      <span class="detail-label">Monthly Fee</span>
+      <span class="detail-value" style="color:var(--green)">KES ${c.fee.toLocaleString()}</span>
+    </div>
+    <div class="detail-row">
+      <span class="detail-label">Expiry Date</span>
+      <span class="detail-value">${expiryStr}</span>
+    </div>
+    <div class="detail-row">
+      <span class="detail-label">Days</span>
+      <span class="detail-value">${dayStr}</span>
+    </div>
+    <div class="detail-row">
+      <span class="detail-label">Contact</span>
+      <span class="detail-value">${c.contact || '—'}</span>
+    </div>
+    ${c.notes ? `<div class="detail-row"><span class="detail-label">Notes</span><span class="detail-value" style="font-size:11px">${c.notes}</span></div>` : ''}
+    <div class="action-row">
+      <button class="btn-action btn-paid" onclick="recordPayment('${c.username}')">✓ Paid</button>
+      <button class="btn-action ${c.status==='Disabled'?'btn-enable':'btn-disable'}"
+        onclick="${c.status==='Disabled'?`enableClient('${c.username}')`:`disableClient('${c.username}')`}">
+        ${c.status==='Disabled'?'Enable':'Disable'}
+      </button>
+    </div>
+    <button class="btn-close-modal" onclick="closeModal()">Close</button>`;
+
+  document.getElementById('client-modal').classList.add('open');
+}
+
+function closeModal(e) {
+  if (!e || e.target === document.getElementById('client-modal')) {
+    document.getElementById('client-modal').classList.remove('open');
+  }
+}
+
+function recordPayment(username) {
+  const c = state.clients.find(x => x.username === username);
+  if (!c) return;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const newExpiry = new Date(today); newExpiry.setDate(newExpiry.getDate() + 30);
+
+  // Update local state
+  c.expiry   = newExpiry;
+  c.daysLeft = 30;
+  c.status   = 'Active';
+
+  // Save payment record
+  state.payments.unshift({
+    username, plan: c.plan, fee: c.fee,
+    date: today.toLocaleDateString('en-KE'),
+    timestamp: Date.now()
+  });
+  if (state.payments.length > 100) state.payments.pop();
+  localStorage.setItem('tksl_payments', JSON.stringify(state.payments));
+
+  // Add alert
+  addAlert(`Payment recorded: ${username}`, `KES ${c.fee.toLocaleString()} — ${c.plan}`, 'info');
+
+  showToast(`✓ ${username} renewed — expires ${newExpiry.toLocaleDateString('en-KE',{day:'2-digit',month:'short'})}`, 'success');
+  closeModal();
+  renderDashboard();
+  renderClientList();
+  renderBilling();
+}
+
+function disableClient(username) {
+  const c = state.clients.find(x => x.username === username);
+  if (!c) return;
+  const past = new Date(); past.setDate(past.getDate() - 3);
+  c.expiry = past; c.daysLeft = -3; c.status = 'Disabled';
+  addAlert(`Client disabled: ${username}`, c.plan, 'danger');
+  showToast(`🔴 ${username} disabled`, 'error');
+  closeModal();
+  renderDashboard(); renderClientList();
+}
+
+function enableClient(username) {
+  const c = state.clients.find(x => x.username === username);
+  if (!c) return;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const newExpiry = new Date(today); newExpiry.setDate(newExpiry.getDate() + 30);
+  c.expiry = newExpiry; c.daysLeft = 30; c.status = 'Active';
+  addAlert(`Client enabled: ${username}`, c.plan, 'info');
+  showToast(`✅ ${username} enabled`, 'success');
+  closeModal();
+  renderDashboard(); renderClientList();
+}
+
+// ═══════════════════════════════════════════════════════
+// BILLING
+// ═══════════════════════════════════════════════════════
+function renderBilling() {
+  const paying = state.clients.filter(c => c.plan !== 'Plan_Admin');
+  const revenue = paying.filter(c => c.status === 'Active').reduce((s,c) => s + c.fee, 0);
+  document.getElementById('billing-revenue').textContent = 'KES ' + revenue.toLocaleString();
+
+  const counts = {};
+  ['Plan_500','Plan_1000','Plan_1500','Plan_2000'].forEach(p => {
+    counts[p] = state.clients.filter(c => c.plan === p && c.status === 'Active').length;
+  });
+  document.getElementById('billing-breakdown').textContent =
+    `500×${counts.Plan_500} + 1000×${counts.Plan_1000} + 1500×${counts.Plan_1500} + 2000×${counts.Plan_2000}`;
+
+  if (state.payments.length === 0) {
+    document.getElementById('payment-list').innerHTML =
+      '<div style="font-size:12px;color:var(--muted);text-align:center;padding:20px">No payments recorded yet.<br>Tap a client and mark as paid.</div>';
+    return;
+  }
+
+  document.getElementById('payment-list').innerHTML = state.payments.slice(0,20).map(p => `
+    <div class="payment-item">
+      <div class="payment-dot" style="background:var(--green)"></div>
+      <div class="payment-info">
+        <div class="payment-name">${p.username}</div>
+        <div class="payment-date">${p.plan} · ${p.date}</div>
+      </div>
+      <div class="payment-amount">+KES ${p.fee.toLocaleString()}</div>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// ALERTS
+// ═══════════════════════════════════════════════════════
+function addAlert(title, body, type = 'info') {
+  state.alerts.unshift({ title, body, type, time: new Date().toLocaleTimeString('en-KE'), ts: Date.now() });
+  if (state.alerts.length > 50) state.alerts.pop();
+  localStorage.setItem('tksl_alerts', JSON.stringify(state.alerts));
+}
+
+function renderAlerts() {
+  // Auto-generate alerts from current data
+  const autoAlerts = [];
+  state.clients.forEach(c => {
+    if (c.plan === 'Plan_Admin') return;
+    if (c.status === 'Disabled')
+      autoAlerts.push({ title: `Disabled: ${c.username}`, body: `${c.plan} — expired ${Math.abs(c.daysLeft)}d ago`, type: 'danger', time: 'Today' });
+    else if (c.status === 'Grace Period')
+      autoAlerts.push({ title: `Grace Period: ${c.username}`, body: `${c.plan} — ${c.daysLeft}d left`, type: 'warn', time: 'Today' });
+    else if (c.daysLeft <= 5 && c.daysLeft > 2)
+      autoAlerts.push({ title: `Expiring soon: ${c.username}`, body: `${c.plan} — ${c.daysLeft}d left`, type: 'warn', time: 'Today' });
+  });
+
+  const all = [...state.alerts, ...autoAlerts].slice(0, 40);
+
+  if (all.length === 0) {
+    document.getElementById('alerts-list').innerHTML =
+      '<div style="text-align:center;padding:40px;color:var(--muted);font-size:13px">✅ No alerts</div>';
+    return;
+  }
+
+  document.getElementById('alerts-list').innerHTML = all.map(a => `
+    <div class="alert-item ${a.type === 'danger' ? 'danger' : a.type === 'warn' ? 'warn' : ''}">
+      <div class="alert-title">${a.title}</div>
+      <div class="alert-body">${a.body}</div>
+      <div class="alert-time">${a.time || ''}</div>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// CLIENT PORTAL
+// ═══════════════════════════════════════════════════════
+function renderClientPortal() {
+  const username = state.loggedInClient;
+  const c = state.clients.find(x => x.username.toLowerCase() === username.toLowerCase());
+
+  document.getElementById('portal-avatar').textContent = username[0].toUpperCase();
+
+  if (!c) {
+    document.getElementById('portal-username').textContent = username;
+    document.getElementById('portal-plan').textContent = 'Account not found in system';
+    document.getElementById('portal-status-badge').textContent = 'Unknown';
+    document.getElementById('portal-days').textContent = '—';
+    document.getElementById('portal-bar').style.width = '0%';
+    document.getElementById('portal-fee').textContent = '—';
+    document.getElementById('portal-expiry').textContent = '—';
+    document.getElementById('portal-speed').textContent = '—';
+    document.getElementById('portal-status-text').textContent = '—';
+    return;
+  }
+
+  document.getElementById('portal-username').textContent = c.username;
+  document.getElementById('portal-plan').textContent = c.plan + ' · ' + (CONFIG.PLAN_SPEEDS[c.plan] || '—');
+
+  const badge = document.getElementById('portal-status-badge');
+  const statusColors = {
+    'Active': 'background:rgba(0,230,118,.2);color:var(--green)',
+    'Grace Period': 'background:rgba(255,215,64,.2);color:var(--yellow)',
+    'Disabled': 'background:rgba(255,82,82,.2);color:var(--red)',
+    'Admin': 'background:rgba(0,229,255,.2);color:var(--accent)'
+  };
+  badge.style.cssText = statusColors[c.status] || '';
+  badge.textContent = c.status;
+
+  const pct = c.daysLeft <= 0 ? 0 : Math.min(100, Math.round(c.daysLeft / 30 * 100));
+  document.getElementById('portal-days').textContent = c.daysLeft > 0 ? `${c.daysLeft} days left` : 'Expired';
+  document.getElementById('portal-bar').style.width = pct + '%';
+
+  const expiryStr = c.expiry ? c.expiry.toLocaleDateString('en-KE',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+  document.getElementById('portal-fee').textContent = 'KES ' + c.fee.toLocaleString() + '/month';
+  document.getElementById('portal-expiry').textContent = expiryStr;
+  document.getElementById('portal-speed').textContent = CONFIG.PLAN_SPEEDS[c.plan] || '—';
+  document.getElementById('portal-status-text').textContent = c.status;
+}
+
+// ═══════════════════════════════════════════════════════
+// TAB SWITCHING
+// ═══════════════════════════════════════════════════════
+function switchTab(name, el) {
+  state.currentTab = name;
+  ['dashboard','clients','billing','alerts'].forEach(t => {
+    document.getElementById('tab-' + t).style.display = t === name ? 'block' : 'none';
+  });
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  el.classList.add('active');
+
+  if (name === 'clients') renderClientList();
+  if (name === 'billing') renderBilling();
+  if (name === 'alerts')  renderAlerts();
+}
+
+// ═══════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════
+function statusBadge(status) {
+  return { 'Active': 'badge-active', 'Grace Period': 'badge-grace',
+    'Disabled': 'badge-disabled', 'Admin': 'badge-admin' }[status] || '';
+}
+
+function showToast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  setTimeout(() => t.className = 'toast', 3000);
+}
+
+// ═══════════════════════════════════════════════════════
+// AUTO REFRESH every 5 minutes
+// ═══════════════════════════════════════════════════════
+setInterval(() => {
+  const screen = document.querySelector('.screen.active');
+  if (screen && screen.id === 'screen-admin') {
+    loadData();
+  }
+}, 5 * 60 * 1000);
+
+// Update uptime clock
+setInterval(() => {
+  const el = document.getElementById('admin-uptime');
+  if (el) el.textContent = new Date().toLocaleTimeString('en-KE',{hour:'2-digit',minute:'2-digit'});
+}, 1000);
+</script>
+</body>
+</html>
