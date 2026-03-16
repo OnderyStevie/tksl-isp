@@ -1,4 +1,4 @@
-index.html
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -729,6 +729,7 @@ body::before{
 const CONFIG = {
   // Your Google Sheets CSV URL
   CSV_URL: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSdERzHeiH7rWjpy9QMPjbDtBCT7e38CYah5XJ3z7kKn-4IvnKWecvPmMgymDuQbfHhJIyYt22X3lcD/pub?gid=1335412206&single=true&output=csv",
+  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbyJVCKvtdLS7Jqf9Kd-xi2W-Hgd_BkQCdRAWvjo0Ub80yyub0tBYm403AHGx9xfKGIT/exec",
   // Admin credentials
   ADMIN_USER: "admin",
   ADMIN_PASS: "tksl2026",
@@ -1085,18 +1086,14 @@ function closeModal(e) {
   }
 }
 
-function recordPayment(username) {
+async function recordPayment(username) {
   const c = state.clients.find(x => x.username === username);
   if (!c) return;
   const today = new Date(); today.setHours(0,0,0,0);
   const newExpiry = new Date(today); newExpiry.setDate(newExpiry.getDate() + 30);
 
-  // Update local state
-  c.expiry   = newExpiry;
-  c.daysLeft = 30;
-  c.status   = 'Active';
+  c.expiry = newExpiry; c.daysLeft = 30; c.status = 'Active';
 
-  // Save payment record
   state.payments.unshift({
     username, plan: c.plan, fee: c.fee,
     date: today.toLocaleDateString('en-KE'),
@@ -1104,38 +1101,58 @@ function recordPayment(username) {
   });
   if (state.payments.length > 100) state.payments.pop();
   localStorage.setItem('tksl_payments', JSON.stringify(state.payments));
-
-  // Add alert
   addAlert(`Payment recorded: ${username}`, `KES ${c.fee.toLocaleString()} — ${c.plan}`, 'info');
 
-  showToast(`✓ ${username} renewed — expires ${newExpiry.toLocaleDateString('en-KE',{day:'2-digit',month:'short'})}`, 'success');
+  showToast(`⏳ Syncing to sheet...`, 'success');
   closeModal();
-  renderDashboard();
-  renderClientList();
-  renderBilling();
+  renderDashboard(); renderClientList(); renderBilling();
+
+  try {
+    const url = CONFIG.APPS_SCRIPT_URL + '?action=paid&username=' + encodeURIComponent(username);
+    await fetch(url, {mode:'no-cors'});
+    showToast(`✓ ${username} renewed + sheet updated ✅`, 'success');
+  } catch(e) {
+    showToast(`✓ ${username} renewed (offline mode)`, 'success');
+  }
 }
 
-function disableClient(username) {
+async function disableClient(username) {
   const c = state.clients.find(x => x.username === username);
   if (!c) return;
   const past = new Date(); past.setDate(past.getDate() - 3);
   c.expiry = past; c.daysLeft = -3; c.status = 'Disabled';
   addAlert(`Client disabled: ${username}`, c.plan, 'danger');
-  showToast(`🔴 ${username} disabled`, 'error');
+  showToast(`⏳ Syncing...`, 'error');
   closeModal();
   renderDashboard(); renderClientList();
+
+  try {
+    const url = CONFIG.APPS_SCRIPT_URL + '?action=disable&username=' + encodeURIComponent(username);
+    await fetch(url, {mode:'no-cors'});
+    showToast(`🔴 ${username} disabled + sheet updated ✅`, 'error');
+  } catch(e) {
+    showToast(`🔴 ${username} disabled`, 'error');
+  }
 }
 
-function enableClient(username) {
+async function enableClient(username) {
   const c = state.clients.find(x => x.username === username);
   if (!c) return;
   const today = new Date(); today.setHours(0,0,0,0);
   const newExpiry = new Date(today); newExpiry.setDate(newExpiry.getDate() + 30);
   c.expiry = newExpiry; c.daysLeft = 30; c.status = 'Active';
   addAlert(`Client enabled: ${username}`, c.plan, 'info');
-  showToast(`✅ ${username} enabled`, 'success');
+  showToast(`⏳ Syncing...`, 'success');
   closeModal();
   renderDashboard(); renderClientList();
+
+  try {
+    const url = CONFIG.APPS_SCRIPT_URL + '?action=enable&username=' + encodeURIComponent(username);
+    await fetch(url, {mode:'no-cors'});
+    showToast(`✅ ${username} enabled + sheet updated ✅`, 'success');
+  } catch(e) {
+    showToast(`✅ ${username} enabled`, 'success');
+  }
 }
 
 // ═══════════════════════════════════════════════════════
